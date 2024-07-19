@@ -7,7 +7,7 @@ export default function ControlItem({controlConf,dataPath,getControl}) {
         gridRowStart:row,
         gridRowEnd:row+rowSpan,
         zIndex:10,
-        backgroundColor:"#FFFFFF",
+        //backgroundColor:"#FFFFFF",
         padding:5}
 
     return (

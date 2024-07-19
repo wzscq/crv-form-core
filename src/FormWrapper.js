@@ -1,9 +1,9 @@
 import React from "react"
-import { useEffect } from "react";
-import { createRow } from "./formDataSlice";
-import FormControl from "./FormControl";
-import { FORM_TYPE } from "./constant";
-import { useDispatch } from "react-redux";
+import { useEffect } from "react"
+import { createRow } from "./formDataSlice"
+import FormControl from "./FormControl"
+import { FORM_TYPE } from "./constant"
+import { useDispatch } from "react-redux"
 
 export default function FormWrapper({formConf,formType,initData,getControl}){
     const dispatch=useDispatch()

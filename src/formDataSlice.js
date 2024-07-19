@@ -21,7 +21,7 @@ const initialState = {
 }
 
 //对原始数据中的每个行做转换，将数组转换为以ID为key的map，方便后续访问
-const convertListToMap=(row,controls)=>{
+const convertListToMap=(row,controls,index)=>{
     for (let controlIdx in controls){
         let {controls:subControls,field /*,modelID,fieldType,associationModelID*/}=controls[controlIdx];
         if(subControls&&field&&row[field]&&row[field].list){
@@ -30,10 +30,12 @@ const convertListToMap=(row,controls)=>{
                 ...row[field],
                 list:{}};
             for(let i=0;i<list.length;++i){
-                row[field].list[list[i][CC_COLUMNS.CC_ID]]=convertListToMap({...list[i]},subControls);
+                row[field].list[list[i][CC_COLUMNS.CC_ID]]=convertListToMap({...list[i]},subControls,i);
             }
         }
     }
+    //增加一个行号字段，用于标识行的原始顺序
+    row[CC_COLUMNS.CC_SN]=index;
     return row;
 }
 
@@ -55,9 +57,9 @@ const getUpdateNodes=(state,dataPath)=>{
         //如果节点不存在，则添加节点，这种情就是增加行，或者表单中第一次录入一个原来没有的字段的数据
         if(!updateNode[key]){
             if(i%3===0){
-                //按照路径的规律，能够被3整除的应该是一个rowKey节点，这是需要向修改缓存中加入一个新的数据行
+                //按照路径的规律，能够被3整除的应该是一个rowNo节点，这时需要向修改缓存中加入一个新的数据行
                 //对于子列表中的数据，update中仅保留了存在修改的字段，没有修改行的数据是不会存在的
-                //这里因为需要需改要给已经存在的行的数据，所以需要从原始数据中取出行的ID和版本号
+                //这里因为要修改已经存在的行的数据，所以需要从原始数据中取出行的ID和版本号
                 //这里考虑ID字段可能是个引用字段，所以要判断一下ID字段的值是不是一个对象，如果是对象，取对象的value值
                 const idObj=updatedNode[key][CC_COLUMNS.CC_ID];
                 const idVal=idObj.value?idObj.value:idObj;
@@ -105,6 +107,16 @@ const getUpdateNodes=(state,dataPath)=>{
     return {updateNode,updatedNode};
 }
 
+const getMaxSN=(updatedNode)=>{
+    const maxSN=-1;
+    Object.keys(updatedNode).forEach(key => {
+        if(updatedNode[key][CC_COLUMNS.CC_SN]&&updatedNode[key][CC_COLUMNS.CC_SN]>maxSN){
+            maxSN=updatedNode[key][CC_COLUMNS.CC_SN];
+        }
+    });
+    return maxSN++;
+}
+
 export const formDataSlice = createSlice({
     name: 'formData',
     initialState,
@@ -115,8 +127,8 @@ export const formDataSlice = createSlice({
                 //把数组形式的列表转换成以ID为key值的map
                 //对于每一层级字段中的的list都要做转换
                 for(let i=0;i<list.length;++i){
-                    state.origin[list[i]['id']]=convertListToMap({...(list[i])},controls);
-                    state.updated[list[i]['id']]=convertListToMap({...(list[i])},controls);
+                    state.origin[list[i]['id']]=convertListToMap({...(list[i])},controls,i);
+                    state.updated[list[i]['id']]=convertListToMap({...(list[i])},controls,i);
                 }   
             }
             state.loaded=true;
@@ -133,11 +145,15 @@ export const formDataSlice = createSlice({
                 const rowKey='__c__'+gRowIdx++;
                 if(dataPath.length>0){
                     const {updateNode,updatedNode}=getUpdateNodes(state,dataPath);
+                    //这里需要考虑新加入的数据行的顺序问题，这里的逻辑是新加入的数据行放在最后
+                    const maxSN=getMaxSN(updatedNode);
+                    
                     updateNode[rowKey]={[CC_COLUMNS.CC_SAVE_TYPE]:SAVE_TYPE.CREATE,...initData};
-                    updatedNode[rowKey]={[CC_COLUMNS.CC_SAVE_TYPE]:SAVE_TYPE.CREATE,...initData};
+                    updatedNode[rowKey]={[CC_COLUMNS.CC_SAVE_TYPE]:SAVE_TYPE.CREATE,[CC_COLUMNS.CC_SN]:maxSN,...initData};
                 } else {
+                    const maxSN=getMaxSN(state.updated);
                     state.update[rowKey]={[CC_COLUMNS.CC_SAVE_TYPE]:SAVE_TYPE.CREATE,...initData};
-                    state.updated[rowKey]={[CC_COLUMNS.CC_SAVE_TYPE]:SAVE_TYPE.CREATE,...initData};
+                    state.updated[rowKey]={[CC_COLUMNS.CC_SAVE_TYPE]:SAVE_TYPE.CREATE,[CC_COLUMNS.CC_SN]:maxSN,...initData};
                 }
             }
         },
@@ -167,6 +183,13 @@ export const formDataSlice = createSlice({
         refreshData:(state,action) => {
             state.loaded=false;
         },
+        reset:(state,action)=>{
+            state.loaded=false;
+            state.origin={};
+            state.update={[defaultRowKey]:{}};
+            state.updated={[defaultRowKey]:{}};
+            state.errorField={};
+        }
     }
 });
 
@@ -178,7 +201,8 @@ export const {
     deleteRow,
     setErrorField,
     removeErrorField,
-    refreshData
+    refreshData,
+    reset
 } = formDataSlice.actions
 
 export default formDataSlice.reducer

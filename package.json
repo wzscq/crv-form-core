@@ -1,17 +1,18 @@
 {
   "name": "@wangzhsh19771225/crv-form-core",
-  "version": "1.0.0",
+  "version": "1.0.3",
   "description": "the core data logic of crvform",
   "module": "index.js",
   "scripts": {
-    "build": "npx rollup -c"
+    "build": "npx rollup -c",
+    "publish":"npm publish --access public"
   },
   "files": [
     "index.js"
   ],
   "repository": {
     "type": "git",
-    "url": "https://github.com/npm/wzscq/crv-form-core.git"
+    "url": "https://github.com/wzscq/crv-form-core.git"
   },
   "peerDependencies": {
     "@reduxjs/toolkit": "^2.2.5",
